@@ -1,3 +1,4 @@
+
 # 🔍 DevTrace – Production Error Analyzer
 
 > A simplified, open-source log monitoring and error analysis platform inspired by Sentry/Datadog.  
@@ -240,3 +241,7 @@ A: I used a single `docker-compose.yml` with a custom bridge network (`devtrace-
 ## 📜 License
 
 MIT License — free for personal and commercial use.
+
+# DevTrace
+Full‑stack log monitoring platform using Spring Boot, Elasticsearch, Grafana
+84bfccd530cc9796692818ebdd37a74b93391169
