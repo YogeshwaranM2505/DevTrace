@@ -1,0 +1,36 @@
+{
+  "index_patterns": ["devtrace-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s",
+      "index.lifecycle.name": "devtrace-ilm-policy",
+      "index.lifecycle.rollover_alias": "devtrace-logs"
+    },
+    "mappings": {
+      "dynamic": "true",
+      "properties": {
+        "@timestamp":   { "type": "date" },
+        "timestamp":    { "type": "date" },
+        "level":        { "type": "keyword" },
+        "message": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": { "type": "keyword", "ignore_above": 1024 }
+          }
+        },
+        "service":      { "type": "keyword" },
+        "errorType":    { "type": "keyword" },
+        "rootCause":    { "type": "text", "analyzer": "standard" },
+        "host":         { "type": "keyword" },
+        "environment":  { "type": "keyword" },
+        "traceId":      { "type": "keyword" },
+        "statusCode":   { "type": "integer" },
+        "stackTrace":   { "type": "text", "index": false },
+        "resolved":     { "type": "boolean" }
+      }
+    }
+  }
+}

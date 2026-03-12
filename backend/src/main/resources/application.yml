@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: devtrace-backend
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 10s
+    socket-timeout: 30s
+
+server:
+  port: ${SERVER_PORT:8080}
+
+devtrace:
+  elasticsearch:
+    index-prefix: devtrace-logs
+  alerts:
+    threshold-percentage: 200
+    check-interval-minutes: 60
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.devtrace: DEBUG
+    org.springframework.data.elasticsearch: INFO

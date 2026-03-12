@@ -1,0 +1,134 @@
+{
+  "title": "DevTrace – Error Dashboard",
+  "uid": "devtrace-main",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Errors Today",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": "Elasticsearch",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 200 }
+            ]
+          },
+          "mappings": []
+        }
+      },
+      "targets": [
+        {
+          "datasource": "Elasticsearch",
+          "query": "level:ERROR",
+          "metrics": [{ "id": "1", "type": "count" }],
+          "timeField": "@timestamp",
+          "bucketAggs": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Error Rate Over Time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": "Elasticsearch",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "datasource": "Elasticsearch",
+          "query": "level:ERROR",
+          "alias": "Errors",
+          "metrics": [{ "id": "1", "type": "count" }],
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "2",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": { "interval": "auto", "min_doc_count": "0" }
+            }
+          ]
+        },
+        {
+          "datasource": "Elasticsearch",
+          "query": "level:WARN",
+          "alias": "Warnings",
+          "metrics": [{ "id": "1", "type": "count" }],
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "2",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": { "interval": "auto", "min_doc_count": "0" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "piechart",
+      "title": "Errors by Type",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 4 },
+      "datasource": "Elasticsearch",
+      "targets": [
+        {
+          "datasource": "Elasticsearch",
+          "query": "level:ERROR",
+          "metrics": [{ "id": "1", "type": "count" }],
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "2",
+              "type": "terms",
+              "field": "errorType",
+              "settings": { "size": "10", "order": "desc", "orderBy": "1" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Recent Errors",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": "Elasticsearch",
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Time", "desc": true }]
+      },
+      "targets": [
+        {
+          "datasource": "Elasticsearch",
+          "query": "level:ERROR",
+          "metrics": [{ "id": "1", "type": "logs" }],
+          "timeField": "@timestamp",
+          "bucketAggs": []
+        }
+      ]
+    }
+  ]
+}

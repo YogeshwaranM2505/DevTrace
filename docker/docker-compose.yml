@@ -1,0 +1,139 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DevTrace – Full Stack Docker Compose
+# Services: Elasticsearch, Logstash, Filebeat, Spring Boot, React, Grafana
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  devtrace-net:
+    driver: bridge
+
+volumes:
+  es-data:
+  grafana-data:
+
+services:
+
+  # ── Elasticsearch ──────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: devtrace-elasticsearch
+    environment:
+      - node.name=devtrace-es
+      - cluster.name=devtrace-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false          # Simplified for dev
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - devtrace-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Logstash ───────────────────────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.0
+    container_name: devtrace-logstash
+    volumes:
+      - ../log-pipeline/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      - LS_JAVA_OPTS=-Xmx256m -Xms256m
+      - ELASTICSEARCH_HOST=elasticsearch:9200
+    ports:
+      - "5044:5044"   # Beats input
+      - "5000:5000"   # TCP input
+      - "9600:9600"   # Monitoring API
+    networks:
+      - devtrace-net
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: always
+
+  # ── Filebeat ───────────────────────────────────────────────────────────────
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.12.0
+    container_name: devtrace-filebeat
+    user: root
+    volumes:
+      - ../log-pipeline/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../sample-logs:/var/log/devtrace:ro
+    networks:
+      - devtrace-net
+    depends_on:
+      - logstash
+    command: filebeat -e -strict.perms=false
+
+  # ── Spring Boot Backend ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: devtrace-backend
+    environment:
+      - ELASTICSEARCH_URI=http://elasticsearch:9200
+      - SERVER_PORT=8080
+      - SPRING_PROFILES_ACTIVE=docker
+    ports:
+      - "8080:8080"
+    networks:
+      - devtrace-net
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # ── React Frontend ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: devtrace-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - devtrace-net
+    depends_on:
+      - backend
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: devtrace-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    networks:
+      - devtrace-net
+    depends_on:
+      elasticsearch:
+        condition: service_healthy

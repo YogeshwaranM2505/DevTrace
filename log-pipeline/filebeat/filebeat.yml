@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# DevTrace Filebeat Configuration
+# Collects logs from files and Docker containers → ships to Logstash
+# ─────────────────────────────────────────────────────────────────────────────
+
+filebeat.inputs:
+
+  # ── Application log files ─────────────────────────────────────────────────
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/devtrace/*.log
+      - /var/log/devtrace/**/*.log
+    fields:
+      source: "file"
+      environment: "production"
+    fields_under_root: false
+    multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+    multiline.negate: true
+    multiline.match: after
+    json.keys_under_root: true
+    json.overwrite_keys: true
+    json.add_error_key: true
+
+  # ── Docker container logs ─────────────────────────────────────────────────
+  - type: container
+    enabled: true
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+    fields:
+      source: "docker"
+    fields_under_root: false
+
+# ── Processors ────────────────────────────────────────────────────────────────
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - decode_json_fields:
+      fields: ["message"]
+      process_array: false
+      max_depth: 1
+      target: ""
+      overwrite_keys: true
+
+# ── Output: Logstash ──────────────────────────────────────────────────────────
+output.logstash:
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  worker: 2
+  bulk_max_size: 2048
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# ── Monitoring ────────────────────────────────────────────────────────────────
+monitoring.enabled: false
